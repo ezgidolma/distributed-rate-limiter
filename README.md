@@ -15,6 +15,7 @@ A Spring Boot servlet filter limits requests per IP address and returns
 - **Distributed** — shared Redis counter works across multiple instances
 - `X-RateLimit-Remaining` and `Retry-After` response headers
 - `/actuator` endpoints are excluded from rate limiting
+- Integration tested with Testcontainers (real Redis, no mocks)
 
 ## How it works
 
@@ -146,6 +147,9 @@ src/main/resources/
 └── lua/
     ├── fixed_window.lua
     └── sliding_window.lua
+
+src/test/java/com/example/ratelimiter/limiter/
+└── RateLimiterIntegrationTest.java   # 6 integration tests via Testcontainers
 ```
 
 ## Test
@@ -154,9 +158,12 @@ src/main/resources/
 ./mvnw test
 ```
 
+Runs 6 integration tests against a real Redis container (Testcontainers).
+No mocks — Lua scripts execute against actual Redis.
+
 ## Roadmap
 
-- [ ] Integration tests with Testcontainers (real Redis in tests)
+- [x] Integration tests with Testcontainers (real Redis in tests)
 - [ ] Prometheus metrics (allowed/denied counts, latency)
 - [ ] Grafana dashboard
 - [ ] Token Bucket algorithm (controlled burst)

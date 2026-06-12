@@ -16,6 +16,7 @@ A Spring Boot servlet filter limits requests per IP address and returns
 - `X-RateLimit-Remaining` and `Retry-After` response headers
 - `/actuator` endpoints are excluded from rate limiting
 - Integration tested with Testcontainers (real Redis, no mocks)
+- Prometheus metrics for request counts and latency
 
 ## How it works
 
@@ -125,6 +126,19 @@ Response when the limit is exceeded:
 | `X-RateLimit-Remaining` | Remaining requests in the current window |
 | `Retry-After`           | Seconds to wait before retrying          |
 
+### Metrics
+
+```bash
+curl http://localhost:8080/actuator/prometheus
+```
+
+Key metrics:
+
+| Metric | Description |
+|--------|-------------|
+| `rate_limit_requests_total{result="allowed|denied", algorithm="..."}` | Request counts by result and algorithm |
+| `rate_limit_duration_seconds` | Request latency (p50, p95, p99) |
+
 ## Project Structure
 
 ```
@@ -135,7 +149,7 @@ src/main/java/com/example/ratelimiter/
 ├── controller/
 │   └── DemoController.java           # Demo endpoint
 ├── filter/
-│   └── RateLimitFilter.java          # Intercepts requests, returns 429
+│   └── RateLimitFilter.java          # Intercepts requests, returns 429, records metrics
 └── limiter/
     ├── RateLimiter.java              # Strategy interface
     ├── RateLimitDecision.java        # Decision record (allowed, remaining, retryAfter)
@@ -164,7 +178,7 @@ No mocks — Lua scripts execute against actual Redis.
 ## Roadmap
 
 - [x] Integration tests with Testcontainers (real Redis in tests)
-- [ ] Prometheus metrics (allowed/denied counts, latency)
+- [x] Prometheus metrics (allowed/denied counts, latency)
 - [ ] Grafana dashboard
 - [ ] Token Bucket algorithm (controlled burst)
 - [ ] API key based limiting (instead of IP)

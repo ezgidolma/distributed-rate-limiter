@@ -17,6 +17,7 @@ A Spring Boot servlet filter limits requests per IP address and returns
 - `/actuator` endpoints are excluded from rate limiting
 - Integration tested with Testcontainers (real Redis, no mocks)
 - Prometheus metrics for request counts and latency
+- Grafana dashboard via docker-compose
 
 ## How it works
 
@@ -55,19 +56,26 @@ server-side as a single unit — no other command runs between them.
 
 ## Setup and Run
 
-### 1. Start Redis
+### Full stack (recommended)
+
+Starts Redis, the application, Prometheus, and Grafana together:
+
+```bash
+docker-compose up --build
+```
+
+| Service     | URL                              |
+|-------------|----------------------------------|
+| Application | http://localhost:8080            |
+| Prometheus  | http://localhost:9090            |
+| Grafana     | http://localhost:3000 (admin/admin) |
+
+### Application only
 
 ```bash
 docker run -d --name redis -p 6379:6379 redis:7-alpine
-```
-
-### 2. Run the application
-
-```bash
 ./mvnw spring-boot:run
 ```
-
-The app starts at `http://localhost:8080`.
 
 ## Configuration
 
@@ -139,31 +147,42 @@ Key metrics:
 | `rate_limit_requests_total{result="allowed|denied", algorithm="..."}` | Request counts by result and algorithm |
 | `rate_limit_duration_seconds` | Request latency (p50, p95, p99) |
 
+Prometheus scrapes metrics every 15 seconds. Grafana is pre-configured with
+Prometheus as a data source — open http://localhost:3000 and create a dashboard
+using the metrics above.
+
 ## Project Structure
 
 ```
-src/main/java/com/example/ratelimiter/
-├── RatelimiterApplication.java
-├── config/
-│   └── RateLimiterConfig.java        # Bean wiring, algorithm selection
-├── controller/
-│   └── DemoController.java           # Demo endpoint
-├── filter/
-│   └── RateLimitFilter.java          # Intercepts requests, returns 429, records metrics
-└── limiter/
-    ├── RateLimiter.java              # Strategy interface
-    ├── RateLimitDecision.java        # Decision record (allowed, remaining, retryAfter)
-    ├── FixedWindowRateLimiter.java
-    └── SlidingWindowRateLimiter.java
-
-src/main/resources/
-├── application.properties
-└── lua/
-    ├── fixed_window.lua
-    └── sliding_window.lua
-
-src/test/java/com/example/ratelimiter/limiter/
-└── RateLimiterIntegrationTest.java   # 6 integration tests via Testcontainers
+distributed-rate-limiter/
+├── docker-compose.yml
+├── Dockerfile
+├── monitoring/
+│   ├── prometheus.yml
+│   └── grafana/
+│       └── provisioning/
+│           ├── datasources/datasource.yml
+│           └── dashboards/dashboard.yml
+├── src/main/java/com/example/ratelimiter/
+│   ├── RatelimiterApplication.java
+│   ├── config/
+│   │   └── RateLimiterConfig.java        # Bean wiring, algorithm selection
+│   ├── controller/
+│   │   └── DemoController.java           # Demo endpoint
+│   ├── filter/
+│   │   └── RateLimitFilter.java          # Intercepts requests, returns 429, records metrics
+│   └── limiter/
+│       ├── RateLimiter.java              # Strategy interface
+│       ├── RateLimitDecision.java        # Decision record (allowed, remaining, retryAfter)
+│       ├── FixedWindowRateLimiter.java
+│       └── SlidingWindowRateLimiter.java
+├── src/main/resources/
+│   ├── application.properties
+│   └── lua/
+│       ├── fixed_window.lua
+│       └── sliding_window.lua
+└── src/test/java/com/example/ratelimiter/limiter/
+    └── RateLimiterIntegrationTest.java   # 6 integration tests via Testcontainers
 ```
 
 ## Test
@@ -179,7 +198,7 @@ No mocks — Lua scripts execute against actual Redis.
 
 - [x] Integration tests with Testcontainers (real Redis in tests)
 - [x] Prometheus metrics (allowed/denied counts, latency)
-- [ ] Grafana dashboard
+- [x] Grafana dashboard (docker-compose provisioning)
 - [ ] Token Bucket algorithm (controlled burst)
 - [ ] API key based limiting (instead of IP)
 - [ ] Spring Cloud Gateway migration
